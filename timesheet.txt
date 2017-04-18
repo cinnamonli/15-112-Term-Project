@@ -1,0 +1,8 @@
+March 6th: 0.5h (Meeting with David)
+April 3rd: 0.5h (Meeting with David)
+April 8th: 3h (installing OpenCV, research on OpenCV)
+April 10th: 0.5h (ML Meeting with Eddie)
+April 14th: 0.15h (TP0 Meeting with Alex)
+April 16th: 3h (research on tkinter, coding)
+April 17th: 3h (coding,project proposal, competitive analysis)
+April 17th: 3h (coding,competitive analysis)
