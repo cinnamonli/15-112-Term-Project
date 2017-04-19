@@ -3,7 +3,18 @@
 
 from tkinter import *
 import random 
+# import sys
+# sys.setrecursionlimit()
 
+# list record the line 
+# pill 
+# Organize into different Modes  
+
+####################################
+# Helper Functions 
+####################################
+def almostEqual(a1,a2):
+    return abs(a1-a2) < 10**(-7)
 ####################################
 # Plant 
 ####################################
@@ -24,10 +35,15 @@ class Plant(object):
         pass
     def draw(self,canvas):
         canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
-                                                self.y + self.r)
+                                               self.y + self.r,fill = "Green")
+    def updateScore(self,data):
+
+####################################
+# Bug 
+####################################
 class Bug(object):
-    def __init__(self,plant):
-        startLocations = getBorders(500,500)
+    def __init__(self,plant,data):
+        startLocations = getBorders(data.width,data.height)
         (self.x,self.y) = random.choice(startLocations) 
         self.r = 10
         self.isDead = False
@@ -51,12 +67,32 @@ class Bug(object):
     def draw(self,canvas):
         canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
                                                 self.y + self.r, fill = "Red")
+        # drawShapes(self,canvas)
 
-    def updateDeath(self):
-        if self.shapesRemaining == []:
+    def drawShapes(self,canvas):
+        for (i,shape) in self.shapesRemaining:
+            if shape == "square":
+                drawRect
+            elif shape == "circle":
+                drawCircle
+            elif shape == "triangle":
+                drawTriangle
+            else:
+                drawStar
+
+    def move(self):
+        self.x += self.xSpeed
+        self.y += self.ySpeed
+
+    def updateDeath(self,plant,data):
+        if almostEqual(self.x,plant.x) and almostEqual(self.y,plant.y):
+            self.isDead = True
+
+        elif self.shapesRemaining == []:
             self.isDead = True
 
 def buildShapes(num, vals):
+    #builds up the shapes that each bug contains 
     result = []
     for i in range(num):
         new = random.choice(vals)
@@ -82,38 +118,50 @@ print(getBorders(500,500))
 
 
 ####################################
-# customize these functions
+# Event Handlers
 ####################################
 
 def init(data):
     data.simin = Plant()
-    data.ant = Bug(data.simin)
+    data.ant = Bug(data.simin,data)
+    data.doodle = []
     print(data.ant.x, data.ant.y)
     print(data.ant.shapesRemaining)
 
 def mousePressed(event, data):
     # use event.x and event.y
+    data.doodle = []
     data.prevX = event.x
     data.prevY = event.y
 
 def mouseDragged(canvas,event, data):
-	print("mouseDragged")
-	canvas.create_line(data.prevX,data.prevY,event.x,event.y,width = 6)
-	data.prevX,data.prevY = event.x,event.y
-
+    print("mouseDragged")
+    data.doodle.append((event.x,event.y))
 
 def keyPressed(event, data):
     # use event.char and event.keysym
     pass
 
 def timerFired(data):
-    pass
+    data.ant.move()
+    data.ant.updateDeath(data.simin,data)
 
 def redrawAll(canvas, data):
     data.simin.draw(canvas)
+    if data.ant.isDead == False:
+        data.ant.draw(canvas)
+    if len(data.doodle) > 1:
+        drawDoodle(canvas, data.doodle)
+
+def drawDoodle(canvas, points):
+    prevX,prevY = points[0][0],points[0][1]
+    for (x,y) in points[1:]:
+        canvas.create_line(prevX,prevY,x,y,width = 3)
+        prevX,prevY = x,y
+
 
 ####################################
-# use the run function as-is
+# Run 
 ####################################
 
 def run(width=300, height=300):
@@ -126,19 +174,19 @@ def run(width=300, height=300):
 
     def mousePressedWrapper(event, canvas, data):
         mousePressed(event, data)
-        # redrawAllWrapper(canvas, data)
+        redrawAllWrapper(canvas, data)
 
     def mouseDraggedWrapper(event, canvas, data):
     	mouseDragged(canvas,event, data)
-    	# redrawAllWrapper(canvas, data)
+    	redrawAllWrapper(canvas, data)
 
     def keyPressedWrapper(event, canvas, data):
         keyPressed(event, data)
-        # redrawAllWrapper(canvas, data)
+        redrawAllWrapper(canvas, data)
 
     def timerFiredWrapper(canvas, data):
         timerFired(data)
-        # redrawAllWrapper(canvas, data)
+        redrawAllWrapper(canvas, data)
         # pause, then call timerFired again
         canvas.after(data.timerDelay, timerFiredWrapper, canvas, data)
     # Set up data and call init
