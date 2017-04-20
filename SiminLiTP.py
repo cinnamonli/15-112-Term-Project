@@ -3,57 +3,66 @@
 
 from tkinter import *
 import random 
-# import sys
-# sys.setrecursionlimit()
+from tkinter import font
+# import tkFont
 
-# list record the line 
+
 # pill 
-# Organize into different Modes  
+# Organize into different Modes 
+# add animations for bug splat 
+# add animations for bug hit 
+# add randomized bug generation 
+# add timer to determine when the round is over 
+# figure out gimp
+# figure out level up
+
+
+#bonus 
+#add color when the shape is almost detected 
 
 ####################################
 # Helper Functions 
 ####################################
 def almostEqual(a1,a2):
     return abs(a1-a2) < 10**(-7)
+
 ####################################
 # Plant 
 ####################################
 class Plant(object):
-    def __init__(self):
+    def __init__(self,data):
         self.r = 30
-        self.x = 250
-        self.y = 250
+        self.x = data.width//2
+        self.y = data.height//2
         self.level = 1
         self.lives = 5
-        self.score = 0 
         self.isDead = False
 
     def updateDeath(self):
         if self.lives <= 0:
             self.isDead = True
+            data.gameOver = True
     def reduceLives(self,bugs):
         pass
     def draw(self,canvas):
         canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
                                                self.y + self.r,fill = "Green")
-    def updateScore(self,data):
-
 ####################################
 # Bug 
 ####################################
 class Bug(object):
-    def __init__(self,plant,data):
+    def __init__(self,data):
         startLocations = getBorders(data.width,data.height)
         (self.x,self.y) = random.choice(startLocations) 
         self.r = 10
         self.isDead = False
-        xDist = plant.x - self.x
-        yDist = plant.y - self.y
-        if plant.level == 1:
+        xDist = data.plant.x - self.x
+        yDist = data.plant.y - self.y
+        if data.plant.level == 1:
         #level 1 is easy and most bugs contain only 1 shape
             
-            self.xSpeed = xDist / 30
-            self.ySpeed = yDist / 30 
+            self.xSpeed = xDist / 150
+            self.ySpeed = yDist / 150 
             if (random.randint(0,1) < 0.1):
                 self.shapeNum = random.randint(1,3)
             else:
@@ -64,6 +73,7 @@ class Bug(object):
         #level 5 is difficult and everybug contains 4-9 shapes 
         self.shapeVals = ["square","circle","triangle","star"]
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
+
     def draw(self,canvas):
         canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
                                                 self.y + self.r, fill = "Red")
@@ -72,24 +82,53 @@ class Bug(object):
     def drawShapes(self,canvas):
         for (i,shape) in self.shapesRemaining:
             if shape == "square":
-                drawRect
+                rect 
+                #image
             elif shape == "circle":
                 drawCircle
             elif shape == "triangle":
                 drawTriangle
             else:
                 drawStar
+    def splat(self,canvas):
+        #creates an animation effect when the bug is splatted 
+        #import image 
+        pass
 
     def move(self):
         self.x += self.xSpeed
         self.y += self.ySpeed
 
-    def updateDeath(self,plant,data):
-        if almostEqual(self.x,plant.x) and almostEqual(self.y,plant.y):
+    def updateDeath(self,data):
+        if almostEqual(self.x,data.plant.x) and almostEqual(self.y,data.plant.y):
+        #the bug has reached the plant 
             self.isDead = True
+            data.plant.lives -= 1
+            if data.score > 0:
+                data.score -= data.scoreUnit
 
         elif self.shapesRemaining == []:
             self.isDead = True
+            #add animation of bug splat 
+
+    def deleteShape(self,event,data):
+        input = ""
+        if event.keysym == "q":
+            input = "square"
+        elif event.keysym == "c":
+            input = "circle"
+        elif event.keysym == "s":
+            input = "star"
+        elif event.keysym == "t":
+            input = "triangle"
+        if self.shapesRemaining!= [] and input == self.shapesRemaining[0]:
+        # lethal hit to bug successful
+            data.score += data.scoreUnit
+            #add this to score
+
+            self.shapesRemaining.pop(0) 
+    
+
 
 def buildShapes(num, vals):
     #builds up the shapes that each bug contains 
@@ -113,20 +152,28 @@ def getBorders(width,height):
            border.append((x,y))
     return border
 
-print(getBorders(500,500))
-
-
 
 ####################################
-# Event Handlers
+# Main(playMode)
 ####################################
 
 def init(data):
-    data.simin = Plant()
-    data.ant = Bug(data.simin,data)
+    data.gameOver = False
+    data.plant = Plant(data)
     data.doodle = []
-    print(data.ant.x, data.ant.y)
-    print(data.ant.shapesRemaining)
+    data.scoreUnit = 1
+    initLevel(data)
+    print(data.bugs[0].shapesRemaining)
+
+def initLevel(data):
+    data.timer = 0
+    data.bugTimer = 0
+    data.score = 0
+    data.bugs = []
+    data.bugs.append(Bug(data))
+    data.bugCount = 1
+    data.levelComplete = False
+
 
 def mousePressed(event, data):
     # use event.x and event.y
@@ -140,18 +187,55 @@ def mouseDragged(canvas,event, data):
 
 def keyPressed(event, data):
     # use event.char and event.keysym
-    pass
+    for bug in data.bugs:
+        bug.deleteShape(event,data)
+    print("shapesremaining",data.bugs[0].shapesRemaining)
 
 def timerFired(data):
-    data.ant.move()
-    data.ant.updateDeath(data.simin,data)
+    millisecond = 1000
+    data.timer += (data.timerDelay/millisecond) 
+    data.bugTimer += (data.timerDelay/millisecond) 
+    
+    if data.plant.level == 1:
+        #level 1 is easy and bugs appear less frequently     
+        if data.bugTimer > 5 and data.bugCount < 25:
+            if random.randint(0,1) > 0.5:
+                data.bugs.append(Bug(data))
+                data.bugTimer = 0
+                data.bugCount += 1
+        #level 2 is more difficult and bugs appear more frequently 
+        #level 3 is difficult and bugs appear in swarms 
+        #level 4 is hard and there are a lot of bugs in swarms 
+        #level 5 is very hard and you must use special operators to win
+    print("timer",data.timer)
+    if data.bugs != []:
+        for bug in data.bugs:
+            if bug.isDead == False:
+                bug.move()
+                bug.updateDeath(data)
+    if data.levelComplete == True:
+        #transition Page 
+        #move to next level 
+        pass
 
 def redrawAll(canvas, data):
-    data.simin.draw(canvas)
-    if data.ant.isDead == False:
-        data.ant.draw(canvas)
+    #draw the plant 
+    data.plant.draw(canvas)
+
+    #draw the bugs
+    if data.bugs != []:
+        for bug in data.bugs:
+            if bug.isDead == False:
+                bug.draw(canvas)
+    #draw the doodle
     if len(data.doodle) > 1:
         drawDoodle(canvas, data.doodle)
+    
+    #draw the score at top right
+    drawScore(canvas,data)
+
+    #draw the lives at top left 
+    drawLives(canvas,data)
 
 def drawDoodle(canvas, points):
     prevX,prevY = points[0][0],points[0][1]
@@ -159,6 +243,25 @@ def drawDoodle(canvas, points):
         canvas.create_line(prevX,prevY,x,y,width = 3)
         prevX,prevY = x,y
 
+def drawScore(canvas,data):
+    margin = 20
+    text = str(data.score) 
+    Arcade90 = font.Font(family='ArcadeClassic',
+        size=90, weight='bold')
+    canvas.create_text(data.width - 100, margin,text = text,anchor = NW, font = Arcade90)
+
+def drawLives(canvas,data):
+    #draws the remaining lives at top left
+    margin = 40
+    total = 5
+    lives = data.plant.lives 
+    lost = total - lives
+    text = "* " * lives + "| " * lost 
+    # in this special font "*" is a full heart 
+    # "|" is an empty heart that represents life lost
+    Heart40 = font.Font(family='My Big Heart Demo',
+        size=40, weight='bold')
+    canvas.create_text(margin //2, margin,text = text,anchor = NW, font = Heart40)
 
 ####################################
 # Run 
@@ -212,4 +315,5 @@ def run(width=300, height=300):
     root.mainloop()  # blocks until window is closed
     print("bye!")
 
-run(500, 500)
+run(1000, 750)
+#(4 by 3)
