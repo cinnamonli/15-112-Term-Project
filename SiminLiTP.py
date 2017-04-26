@@ -4,10 +4,13 @@
 from tkinter import *
 import random 
 from tkinter import font
-# import tkFont
+import PIL
+from PIL import Image, ImageOps
+from PIL import ImageTk
+from PIL import *
+# import ImageOps
 
 
-# pill 
 # Organize into different Modes 
 # add animations for bug splat 
 # add animations for bug hit 
@@ -44,16 +47,34 @@ class Plant(object):
             data.gameOver = True
     def reduceLives(self,bugs):
         pass
-    def draw(self,canvas):
-        canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
-                                               self.y + self.r,fill = "Green")
+    def draw(self,canvas,data):
+        left = data.width / 2
+        top = data.height / 2
+        TkFormat = PIL.ImageTk.PhotoImage(data.PILplantImg)
+        data.genPlantImage = TkFormat
+        #this stores the new image so it doesn't get garbage collected 
+        canvas.create_image(left, top, image=data.genPlantImage)
+        # canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
+        #                                        self.y + self.r,fill = "Green")
 ####################################
 # Bug 
 ####################################
+def flipped(img):
+    #returns the image only flipped horizontally 
+    return ImageOps.mirror(img)
+    
 class Bug(object):
     def __init__(self,data):
         startLocations = getBorders(data.width,data.height)
         (self.x,self.y) = random.choice(startLocations) 
+        if self.x <= data.width // 2:
+        # if it is on the left hand side 
+        # the current direction is correct 
+            self.direction = True 
+        else:
+        # it is on the right hand side and facing 
+        # the wrong direction 
+            self.direction = False
         self.r = 10
         self.isDead = False
         xDist = data.plant.x - self.x
@@ -73,11 +94,23 @@ class Bug(object):
         #level 5 is difficult and everybug contains 4-9 shapes 
         self.shapeVals = ["square","circle","triangle","star"]
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
+        flea = data.fleaImg
+        pillar = data.pillarImg 
+        bugs = [flea,pillar]
+        self.bugType = random.choice(bugs)
 
-    def draw(self,canvas):
-        canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
-                                                self.y + self.r, fill = "Red")
-        # drawShapes(self,canvas)
+    def draw(self,canvas,data):
+        left = self.x
+        top = self.y
+        if not self.direction:
+            image = flipped(self.bugType)
+            image = ImageTk.PhotoImage(image)
+            self.genBugImage = image
+        #this stores the new image so it doesn't get garbage collected 
+        else: 
+            image = ImageTk.PhotoImage(self.bugType)
+            self.genBugImage = image
+        canvas.create_image(left, top, anchor = NW, image=self.genBugImage)
 
     def drawShapes(self,canvas):
         for (i,shape) in self.shapesRemaining:
@@ -103,11 +136,13 @@ class Bug(object):
         if almostEqual(self.x,data.plant.x) and almostEqual(self.y,data.plant.y):
         #the bug has reached the plant 
             self.isDead = True
-            data.plant.lives -= 1
+            if data.plant.lives > 0:
+                data.plant.lives -= 1
             if data.score > 0:
                 data.score -= data.scoreUnit
 
         elif self.shapesRemaining == []:
+            splat(self,canvas)
             self.isDead = True
             #add animation of bug splat 
 
@@ -127,7 +162,6 @@ class Bug(object):
             #add this to score
 
             self.shapesRemaining.pop(0) 
-    
 
 
 def buildShapes(num, vals):
@@ -158,12 +192,20 @@ def getBorders(width,height):
 ####################################
 
 def init(data):
+    preloadImages(data)
     data.gameOver = False
     data.plant = Plant(data)
     data.doodle = []
     data.scoreUnit = 1
     initLevel(data)
     print(data.bugs[0].shapesRemaining)
+
+def preloadImages(data):
+    data.PILplantImg = Image.open("seed.gif")
+    # data.plantImg = PhotoImage(file="seed.gif")
+    data.fleaImg = Image.open("flea.gif")
+    data.pillarImg = Image.open("pillar.gif")
+
 
 def initLevel(data):
     data.timer = 0
@@ -207,7 +249,6 @@ def timerFired(data):
         #level 3 is difficult and bugs appear in swarms 
         #level 4 is hard and there are a lot of bugs in swarms 
         #level 5 is very hard and you must use special operators to win
-    print("timer",data.timer)
     if data.bugs != []:
         for bug in data.bugs:
             if bug.isDead == False:
@@ -220,13 +261,13 @@ def timerFired(data):
 
 def redrawAll(canvas, data):
     #draw the plant 
-    data.plant.draw(canvas)
+    data.plant.draw(canvas,data)
 
     #draw the bugs
     if data.bugs != []:
         for bug in data.bugs:
             if bug.isDead == False:
-                bug.draw(canvas)
+                bug.draw(canvas,data)
     #draw the doodle
     if len(data.doodle) > 1:
         drawDoodle(canvas, data.doodle)
@@ -298,9 +339,9 @@ def run(width=300, height=300):
     data.width = width
     data.height = height
     data.timerDelay = 100 # milliseconds
+    root = Tk()
     init(data)
     # create the root and the canvas
-    root = Tk()
     canvas = Canvas(root, width=data.width, height=data.height)
     canvas.pack()
     # set up events
