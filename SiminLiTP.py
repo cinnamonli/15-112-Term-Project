@@ -54,8 +54,7 @@ class Plant(object):
         data.genPlantImage = TkFormat
         #this stores the new image so it doesn't get garbage collected 
         canvas.create_image(left, top, image=data.genPlantImage)
-        # canvas.create_oval(self.x - self.r,self.y - self.r,self.x + self.r,
-        #                                        self.y + self.r,fill = "Green")
+
 ####################################
 # Bug 
 ####################################
@@ -92,7 +91,7 @@ class Bug(object):
         #level 3 is easy and most bugs contain only 1 shape
         #level 4 is easy and most bugs contain only 1 shape
         #level 5 is difficult and everybug contains 4-9 shapes 
-        self.shapeVals = ["square","circle","triangle","star"]
+        self.shapeVals = ["n","v","horizontalLine","verticalBar"]
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
         flea = data.fleaImg
         pillar = data.pillarImg 
@@ -112,17 +111,21 @@ class Bug(object):
             self.genBugImage = image
         canvas.create_image(left, top, anchor = NW, image=self.genBugImage)
 
-    def drawShapes(self,canvas):
-        for (i,shape) in self.shapesRemaining:
-            if shape == "square":
-                rect 
-                #image
-            elif shape == "circle":
-                drawCircle
-            elif shape == "triangle":
-                drawTriangle
-            else:
-                drawStar
+    def drawShapes(self,canvas,data):
+        text = ""
+        for shape in self.shapesRemaining:
+            if shape == "n":
+                text += "  A" 
+            elif shape == "v":
+                text += "  v" 
+            elif shape == "horizontalLine":
+                text += "  -" 
+            elif shape == "verticalBar":
+                text += "  |"
+            Astera = font.Font(family='ASTERA', size=20)
+            print(text)
+        canvas.create_text(self.x, self.y - 20,text = text,anchor = N,font = Astera)
+
     def splat(self,canvas):
         #creates an animation effect when the bug is splatted 
         #import image 
@@ -142,25 +145,24 @@ class Bug(object):
                 data.score -= data.scoreUnit
 
         elif self.shapesRemaining == []:
-            splat(self,canvas)
+            # splat(self,canvas)
             self.isDead = True
             #add animation of bug splat 
 
     def deleteShape(self,event,data):
         input = ""
-        if event.keysym == "q":
-            input = "square"
-        elif event.keysym == "c":
-            input = "circle"
-        elif event.keysym == "s":
-            input = "star"
-        elif event.keysym == "t":
-            input = "triangle"
+        if event.keysym == "n":
+            input = "n" 
+        elif event.keysym == "v":
+            input = "v" 
+        elif event.keysym == "l":
+            input = "horizontalLine"
+        elif event.keysym == "b":
+            input = "verticalBar"
         if self.shapesRemaining!= [] and input == self.shapesRemaining[0]:
         # lethal hit to bug successful
             data.score += data.scoreUnit
             #add this to score
-
             self.shapesRemaining.pop(0) 
 
 
@@ -185,7 +187,6 @@ def getBorders(width,height):
        for x in range(0,width,10):
            border.append((x,y))
     return border
-
 
 ####################################
 # Main(playMode)
@@ -268,6 +269,7 @@ def redrawAll(canvas, data):
         for bug in data.bugs:
             if bug.isDead == False:
                 bug.draw(canvas,data)
+                bug.drawShapes(canvas,data)
     #draw the doodle
     if len(data.doodle) > 1:
         drawDoodle(canvas, data.doodle)
