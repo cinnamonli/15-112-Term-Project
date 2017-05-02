@@ -13,7 +13,6 @@ import numpy as np
 import pickle 
 import copy
 
-
 # Organize into different Modes 
 # add animations for bug splat 
 # add animations for bug hit 
@@ -141,20 +140,31 @@ def flatten(L):
 
 def getRelativePosition(doodle):
     x1,y1 = doodle[0][0],doodle[0][1]
-    x3,y3 = doodle[2][0],doodle[2][1]
+    x5,y5 = doodle[-1][0],doodle[-1][1]
     fullDoodle = fillGaps1(doodle)
+    print(fullDoodle)
+    x3 = (x1 + x5)//2
     x2 = (x1 + x3)//2
+    x4 = (x3 + x5)//2
+    print([x1,x2,x3,x4,x5])
+
     for dot in fullDoodle:
         if dot[0] == x2:
             y2 = dot[1]
-    denominator = (x3-x1) 
+        if dot[0] == x3:
+            y3 = dot[1]
+        if dot[0] == x4:
+            y4 = dot[1]
+
+    denominator = (x5-x1)/4
     if denominator == 0:
         denominator = 1
     scale = 4
     delta1 = scale* (y2 - y1)/denominator
-    delta2 = scale* (y3 - y1)/denominator
-    return([delta1,delta2])
-
+    delta2 = scale* (y3 - y2)/denominator
+    delta3 = scale* (y4 - y3)/denominator
+    delta4 = scale* (y5 - y4)/denominator
+    return([delta1,delta2,delta3,delta4])
 
 
 def specialDist(L1,L2):
@@ -231,7 +241,7 @@ class Plant(object):
     def __init__(self,data):
         self.x = data.width//2
         self.y = (data.height - data.upperMargin)//2 + data.upperMargin
-        self.level = 2
+        self.level = 1
         self.lives = 5
         self.isDead = False
 
