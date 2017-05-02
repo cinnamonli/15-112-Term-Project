@@ -135,27 +135,35 @@ def flatten(L):
     return new
 
 def getRelativePosition(doodle):
-    print("doodle",doodle)
     x1,y1 = doodle[0][0],doodle[0][1]
-    x3,y3 = doodle[2][0],doodle[2][1]
+    x5,y5 = doodle[-1][0],doodle[-1][1]
     fullDoodle = fillGaps1(doodle)
+    x3 = (x1 + x5)//2
     x2 = (x1 + x3)//2
+    x4 = (x3 + x5)//2
+    print([x1,x2,x3,x4,x5])
+
     for dot in fullDoodle:
         if dot[0] == x2:
             y2 = dot[1]
-    denominator = (x3-x1) 
+        if dot[0] == x3:
+            y3 = dot[1]
+        if dot[0] == x4:
+            y4 = dot[1]
+
+    denominator = (x5-x1)/4
     if denominator == 0:
-        denominator = 0.1
+        denominator = 1
     scale = 4
     delta1 = scale* (y2 - y1)/denominator
-    delta2 = scale* (y3 - y1)/denominator
-    return([delta1,delta2])
-
+    delta2 = scale* (y3 - y2)/denominator
+    delta3 = scale* (y4 - y3)/denominator
+    delta4 = scale* (y5 - y4)/denominator
+    return([delta1,delta2,delta3,delta4])
 
 
 def specialDist(L1,L2):
     sum = 0
-    print("new:",L1,"known:",L2)
     if ((np.count_nonzero(L1)) != (np.count_nonzero(L2))):
         print("two uneven lengths(specialDist)")
     print("len",np.count_nonzero(L1))
@@ -233,7 +241,7 @@ def init(data):
     data.doodle = []
     data.trainingData = np.loadtxt("trainingData.txt","int")
     if len(data.trainingData) == 0:
-        data.trainingData = np.empty((0, 2),dtype=int)
+        data.trainingData = np.empty((0, 4),dtype=float)
     #at the very beggining, the file starts out empty
     #the file is read as np.asarray([])
     #so data.trainingData is always a ndarray
@@ -267,7 +275,6 @@ def mouseReleased(event, data):
         data.trainingData = np.append(data.trainingData,[numpA],axis=0)
     elif data.mode == "classifyMode":
         data.input = numpA
-    print("trainingData",data.trainingData)
 
     data.doodleBoard = make2dList(data.width,data.height)
     # reset the new board
