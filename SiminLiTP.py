@@ -9,6 +9,9 @@ from PIL import Image, ImageOps
 from PIL import ImageTk
 from PIL import *
 import math
+import numpy as np
+import pickle 
+import copy
 
 
 # Organize into different Modes 
@@ -31,10 +34,196 @@ def almostEqual(a1,a2):
 
 def rgbString(red, green, blue):
     return "#%02x%02x%02x" % (red, green, blue)
+#taken from http://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
 
 def dist(x1,y1,x2,y2):
     return math.sqrt((x1-x2)**2 + (y1-y2)**2)
-#taken from http://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
+
+def distance(L1,L2):
+    x1 = L1[0][0]
+    x2 = L2[0][0]
+    y1 = L1[0][1]
+    y2 = L2[0][1]
+    return math.sqrt((x1-x2)**2+(y1-y2)**2)
+
+####################################
+# File IO
+####################################
+def loadStuff(data):
+    f1 = open("myPCAModel.p","rb")
+    data.pca =  pickle.load(f1)
+    f1.close()
+
+    f2 = open("myNewTrainingData.p","rb")
+    data.trainingData = pickle.load(f2)
+    f2.close() 
+
+def cleanUp(L):
+    result = []
+    for shape in L:
+        new = ''
+        for i in range(1,len(shape)):
+            c = shape[i]
+            if not c =="\'" and not c =="\\":
+                new = new + c 
+        result.append(new)
+    return result
+
+####################################
+# Machine Learning 
+####################################
+def fillGaps1(pointsL):
+    missedPoints = copy.deepcopy(pointsL)
+    for i in range(len(pointsL) - 1):
+        T1 = pointsL[i]
+        T2 = pointsL[i + 1]
+        new = findInterlinkingDots(T1,T2)
+        missedPoints.extend(copy.copy(new))
+    return sorted(missedPoints)
+
+def fillGaps2(pointsL):
+    # startTime = time.time()
+    newBoard = copy.deepcopy(board)
+    missedPoints = []
+    for i in range(len(pointsL) - 1):
+        T1 = pointsL[i]
+        T2 = pointsL[i + 1]
+        new = findInterlinkingDots(T1,T2)
+        missedPoints.extend(copy.copy(new))
+
+    for oldPoint in pointsL:
+        x = oldPoint[0]
+        y = oldPoint[1]
+        newBoard[x][y] = 2
+
+    for newPoint in missedPoints:
+        x = newPoint[0]
+        y = newPoint[1]
+        newBoard[x][y] = 2
+    # endTime = time.time()
+    # print("fillGaps took %f seconds" % (endTime - startTime))
+    return newBoard
+
+def findF(T1,T2):
+    x1,y1 = T1[0],T1[1]
+    x2,y2 = T2[0],T2[1]
+    if x1 == x2:
+    # this is a vertical line 
+        return None  
+    k = (y1 - y2)/(x1 - x2)
+    b = y1 - k*x1
+    return (k,b)
+
+def findInterlinkingDots(T1,T2):
+    x1,y1 = T1[0],T1[1]
+    x2,y2 = T2[0],T2[1]
+    result = []
+    if findF((x1,y1),(x2,y2)) == None:
+        yStart = min(y1,y2)
+        yStop = y1 + y2 - yStart
+        for y in range(yStart + 1,yStop):
+            result.append((x1,y))
+    else:
+        k,b = findF((x1,y1),(x2,y2))
+        xStart = min(x1,x2) 
+        xStop = x1 + x2 - xStart
+        for x in range(xStart + 1,xStop):
+            y = k*x + b 
+            y = int(y)
+            result.append((x,y))
+    return result 
+
+def flatten(L):
+    new = []
+    for subL in L:
+        new.extend(subL)
+    return new
+
+def getRelativePosition(doodle):
+    x1,y1 = doodle[0][0],doodle[0][1]
+    x3,y3 = doodle[2][0],doodle[2][1]
+    fullDoodle = fillGaps1(doodle)
+    x2 = (x1 + x3)//2
+    for dot in fullDoodle:
+        if dot[0] == x2:
+            y2 = dot[1]
+    denominator = (x3-x1) 
+    if denominator == 0:
+        denominator = 1
+    scale = 4
+    delta1 = scale* (y2 - y1)/denominator
+    delta2 = scale* (y3 - y1)/denominator
+    return([delta1,delta2])
+
+
+
+def specialDist(L1,L2):
+    sum = 0
+    if ((np.count_nonzero(L1)) != (np.count_nonzero(L2))):
+        print("two uneven lengths(specialDist)")
+    print("len",np.count_nonzero(L1))
+    for i in range(0,np.count_nonzero(L1)):
+        num1 = L1[0][i]
+        num2 = L2[0][i]
+        delta = abs(num1 - num2)
+        sum += (delta)
+    return math.sqrt(sum) 
+
+def getType(new,data):
+    k = 1
+    #the number of neighbors we are comparing to 
+    neighbors = getkNearestNeighbors(k,new,data.trainingData,data.trainingDataType)
+    result = getVotes(neighbors)
+    return result 
+    
+def getVotes(neighbors):
+    hiType = None
+    hiCount = 0
+    for key in neighbors:
+        curCount = neighbors[key]
+        if (curCount > hiCount):
+            hiType = key
+            hiCount = curCount
+    return hiType
+
+def getkNearestNeighbors(k,new,dataL,typeL):
+    if ((np.count_nonzero(dataL)) != (np.count_nonzero(typeL))):
+        print("two uneven lengths(trainingList, trainingTypeList)")
+    neighbors = dict()
+    distL = getDists(new,dataL)
+    sortedDistL = np.sort(distL)
+    for i in range(k):
+    #loop through the closest k neighbors
+        itemindexes = np.where(distL==sortedDistL[i])
+        index = itemindexes[0][0]
+        neighbor = typeL[index]
+        if neighbor not in neighbors:
+            neighbors[neighbor] = 1
+        else:
+            neighbors[neighbor] += 1
+    return neighbors 
+
+def getDists(new,dataL):
+    distL = np.asarray([])
+    for knownImg in (dataL):
+        dist = distance(new,knownImg)
+        distL = np.append(distL,dist)
+    return distL
+
+def getPCA(L):
+    #builds a pca model that serves as a black box
+    #takes in a flattened list and returns a tuple of length 2
+    pca = decomposition.PCA(n_components=2)
+    pca.fit(L)
+    return pca 
+#taken from https://www.youtube.com/watch?v=SBYdqlLgbGk
+
+def getPCATransformedData(L,newPCA,data):
+    #This returns transformed training data  
+    result = []
+    for img in data.trainingData:
+        result.append(newPCA.transform(img))
+    return result 
 ####################################
 # Plant 
 ####################################
@@ -165,6 +354,7 @@ class Bug(object):
         self.isDead = False
         self.xDist = data.plant.x - self.x
         self.yDist = data.plant.y - self.y 
+        self.splatted = False
         Bug.initBug(self,data)
         self.shapeVals = ["n","v","horizontalLine","verticalBar"]
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
@@ -173,9 +363,7 @@ class Bug(object):
         bugs = [flea,pillar]
         #choose a type of bug
         self.bugType = random.choice(bugs)
-        self.reborn = False
-        #This will not be used for general bugs, just bosses to reset the shapes 
-        self.lives = 1
+
 
     def draw(self,canvas,data):
         centerX = self.x
@@ -188,7 +376,18 @@ class Bug(object):
         else: 
             image = ImageTk.PhotoImage(self.bugType)
             self.genBugImage = image
-        canvas.create_image(centerX, centerY, image=self.genBugImage)
+
+        if (self.splatted == False and self.shapesRemaining == [] or 
+        (isinstance(self,Boss) and self.lives <= 0 and self.splatted == False 
+        and self.shapesRemaining == [] )):
+            image = random.choice([data.splatImg1,data.splatImg2])
+            image = ImageTk.PhotoImage(image)
+            self.genSplatImage = image
+            canvas.create_image(centerX, centerY, image=self.genSplatImage)
+            self.splatted = True
+            print("a splat should appear")
+        else:
+            canvas.create_image(centerX, centerY, image=self.genBugImage)
 
     def drawShapes(self,canvas,data):
         text = ""
@@ -208,6 +407,7 @@ class Bug(object):
             canvas.create_text(self.x, self.y - margin,text = text,font= Astera)
 
         elif isinstance(self,Boss) and self.xSpeed <= 0:
+        #only render the shapes when the boss gets back to the starting point 
             canvas.create_text(self.x, self.y - margin,text = text,font= Astera)
 
     def splat(self,canvas,data):
@@ -240,7 +440,7 @@ class Bug(object):
             if data.score > 0:
                 data.score -= data.scoreUnit
 
-        elif self.shapesRemaining == []:
+        elif self.shapesRemaining == [] and self.splatted == True:
             #In this case, the bug dies
             self.isDead = True
             #It is removed from the list
@@ -248,17 +448,17 @@ class Bug(object):
             data.bugs.pop(currentBugIndex)
             #add animation of bug splat 
 
-    def deleteShape(self,event,data):
-        input = ""
-        if event.keysym == "n":
-            input = "n" 
-        elif event.keysym == "v":
-            input = "v" 
-        elif event.keysym == "l":
-            input = "horizontalLine"
-        elif event.keysym == "b":
-            input = "verticalBar"
-        if self.shapesRemaining!= [] and input == self.shapesRemaining[0]:
+    def deleteShape(self,data):
+        # input = ""
+        # if event.keysym == "n":
+        #     input = "n" 
+        # elif event.keysym == "v":
+        #     input = "v" 
+        # elif event.keysym == "l":
+        #     input = "horizontalLine"
+        # elif event.keysym == "b":
+        #     input = "verticalBar"
+        if self.shapesRemaining!= [] and data.input == self.shapesRemaining[0]:
         # lethal hit to bug successful
             data.score += data.scoreUnit
             #add this to score
@@ -314,10 +514,10 @@ class Boss(Bug):
             GrassHopper.moveBack(self,data)
             self.shapeVals = ["n","v","horizontalLine","verticalBar"]
             self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
+            #regenerates shapes 
             self.reborn = False
 
         elif self.shapesRemaining == [] and self.lives <= 0:
-            # splat(self,canvas)
             self.isDead = True
             data.bossDead = True
             #add animation of bug splat
@@ -342,6 +542,8 @@ class GrassHopper(Boss):
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
         self.bugType = data.hopperImg 
         self.reborn = False
+        self.splatted = False
+
 
 class LadyBug(Boss):
     def __init__(self,data):
@@ -364,6 +566,7 @@ class LadyBug(Boss):
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
         self.bugType = data.ladyBugImg 
         self.reborn = False
+        self.splatted = False
 
 class Beetle(Boss):
     def __init__(self,data):
@@ -386,6 +589,7 @@ class Beetle(Boss):
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
         self.bugType = data.beetleBugImg 
         self.reborn = False
+        self.spatted = False
 
 
 def buildShapes(num, vals):
@@ -427,16 +631,30 @@ def init(data):
     initLevel(data)
     data.playMode = "readySetGoMode"
     data.score = 0
+    MLInit(data)
+
+def MLInit(data):
+    loadStuff(data)
+    #at the very beggining, the file starts out empty
+    #the file is read as np.asarray([])
+    #so data.trainingData is always a ndarray
+    data.trainingDataType = np.loadtxt("trainingDataType.txt",'str')
+    data.trainingDataType = np.array(data.trainingDataType).tolist()
+    data.trainingDataType  = cleanUp(data.trainingDataType)
 
 def preloadImages(data):
     #This laods in all the images as PIL format
-    data.PILplantImg = Image.open("seed.gif")
+    data.PILplantImg = Image.open("computer.gif")
     data.fleaImg = Image.open("flea.gif")
     data.pillarImg = Image.open("pillar.gif")
-    data.splatImg = Image.open("splat.gif")
+    data.splatImg1 = Image.open("splat1.gif")
+    data.splatImg2 = Image.open("splat2.gif")
     data.hopperImg = Image.open("hopper.gif")
     data.ladyBugImg = Image.open("ladybug.gif")
     data.beetleBugImg = Image.open("beetle.gif")
+    # Bumble Bee by Yu luck from the Noun Project
+    # Splat by Richard Slade from the Noun Project
+    # Splat by Laymik from the Noun Project
 
 
 def initLevel(data):
@@ -449,6 +667,7 @@ def initLevel(data):
     data.bugCount = 1
     data.bugs.append(Bug(data))
     data.levelComplete = False
+    data.input = ""
 
 
 def mousePressed(event, data):
@@ -458,13 +677,20 @@ def mousePressed(event, data):
     data.prevY = event.y
 
 def mouseDragged(canvas,event, data):
-    print("mouseDragged")
     data.doodle.append((event.x,event.y))
+
+def mouseReleased(event, data):
+    relativePosition = getRelativePosition(data.doodle)
+    numpA = np.asarray(relativePosition)
+    data.new = numpA
+    newInput = data.pca.transform(data.new)
+    data.input = getType(newInput,data)
+    for bug in data.bugs:
+        bug.deleteShape(data)
 
 def keyPressed(event, data):
     # use event.char and event.keysym
-    for bug in data.bugs:
-        bug.deleteShape(event,data)
+    pass
 
 def timerFired(data):
     if data.playMode == "mainPlayMode":
@@ -490,6 +716,7 @@ def mainPlayModeTimerFired(data):
             if bug.isDead == False:
                 bug.move(data)
                 bug.updateDeath(data)
+
     updateLevel(data)
 
 ####################################
@@ -704,8 +931,10 @@ def level5GenerateBugs(data):
 ####################################
 def redrawAll(canvas, data):
     #background
-    color = rgbString(213,219,247 )
-    canvas.create_rectangle(-10,-10,data.width+10,data.height+10,fill = color,width = 0)
+    color = rgbString(213,219,247)
+    margin = 10
+    canvas.create_rectangle(-margin,-margin,data.width+margin,
+        data.height+margin,fill = color,width = 0)
     if data.playMode == "mainPlayMode":
         mainPlayModeDraw(canvas,data) 
 
@@ -812,6 +1041,10 @@ def run(width=300, height=300):
     	mouseDragged(canvas,event, data)
     	redrawAllWrapper(canvas, data)
 
+    def mouseReleasedWrapper(event, canvas, data):
+        mouseReleased(event, data)
+        redrawAllWrapper(canvas, data)
+
     def keyPressedWrapper(event, canvas, data):
         keyPressed(event, data)
         redrawAllWrapper(canvas, data)
@@ -839,6 +1072,8 @@ def run(width=300, height=300):
                             keyPressedWrapper(event, canvas, data))
     root.bind("<B1-Motion>", lambda event:
     	                    mouseDraggedWrapper(event, canvas, data))
+    root.bind("<ButtonRelease-1>", lambda event:
+                            mouseReleasedWrapper(event, canvas, data))
     timerFiredWrapper(canvas, data)
     # and launch the app
     root.mainloop()  # blocks until window is closed
