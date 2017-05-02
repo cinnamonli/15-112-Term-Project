@@ -7,7 +7,10 @@ import numpy as np
 from PIL import *
 import copy
 import math
-
+import tkinter
+import time
+from sklearn import *
+import pickle 
 # Organize into different Modes 
 # add animations for bug splat 
 # add animations for bug hit 
@@ -37,36 +40,44 @@ def writeFile(path, contents):
 # taken from http://www.cs.cmu.edu/~112/notes/notes-strings.html#basicFileIO
 def make2dList(rows, cols):
     a=[]
-    for row in range(rows): a += [[0]*cols]
+    for row in range(rows): a += [[1]*cols]
     return a
 
+def distance(L1,L2):
+    x1 = L1[0][0]
+    x2 = L2[0][0]
+    y1 = L1[0][1]
+    y2 = L2[0][1]
+    return math.sqrt((x1-x2)**2+(y1-y2)**2)
+
 #taken from http://www.cs.cmu.edu/~112/notes/notes-2d-lists.html#creating2dLists
-####################################
-# File IO 
-####################################
-def updateTrainingData(path,data):
-    old = readFile(path)
-    writeFile(path, old + str(data.trainingData))
 
-def updateTypeData(path,data):
-    old = readFile(path)
-    content = format(old)
-    old.append(data.trainingDataType)
-    writeFile(path, old)
+def cleanUp(L):
+    result = []
+    for shape in L:
+        new = ''
+        for i in range(1,len(shape)):
+            c = shape[i]
+            if not c =="\'" and not c =="\\":
+                new = new + c 
+        result.append(new)
+    return result
 
-# [array([0, 0, 0, ..., 0, 0, 0])]
-def format(s):
-    new = s[1:len(s)-1]
-    return new
-
-def getTrainingData(path,data):
-    pass
-
-print(format("[array([0, 0, 0, ..., 0, 0, 0]),array([0, 0, 0, ..., 0, 0, 0]), array([0, 0, 0, ..., 0, 0, 0])]"))
 ####################################
-# Testing Data
+# Training Data
 ####################################
-def fillGaps(board,pointsL):
+
+def fillGaps1(pointsL):
+    missedPoints = copy.deepcopy(pointsL)
+    for i in range(len(pointsL) - 1):
+        T1 = pointsL[i]
+        T2 = pointsL[i + 1]
+        new = findInterlinkingDots(T1,T2)
+        missedPoints.extend(copy.copy(new))
+    return sorted(missedPoints)
+
+def fillGaps2(pointsL):
+    # startTime = time.time()
     newBoard = copy.deepcopy(board)
     missedPoints = []
     for i in range(len(pointsL) - 1):
@@ -78,12 +89,14 @@ def fillGaps(board,pointsL):
     for oldPoint in pointsL:
         x = oldPoint[0]
         y = oldPoint[1]
-        newBoard[x][y] = 1
+        newBoard[x][y] = 2
 
     for newPoint in missedPoints:
         x = newPoint[0]
         y = newPoint[1]
-        newBoard[x][y] = 1
+        newBoard[x][y] = 2
+    # endTime = time.time()
+    # print("fillGaps took %f seconds" % (endTime - startTime))
     return newBoard
 
 def findF(T1,T2):
@@ -119,27 +132,48 @@ def flatten(L):
     new = []
     for subL in L:
         new.extend(subL)
-    return tuple(new)
+    return new
+
+def getRelativePosition(doodle):
+    print("doodle",doodle)
+    x1,y1 = doodle[0][0],doodle[0][1]
+    x3,y3 = doodle[2][0],doodle[2][1]
+    fullDoodle = fillGaps1(doodle)
+    x2 = (x1 + x3)//2
+    for dot in fullDoodle:
+        if dot[0] == x2:
+            y2 = dot[1]
+    denominator = (x3-x1) 
+    if denominator == 0:
+        denominator = 0.1
+    scale = 4
+    delta1 = scale* (y2 - y1)/denominator
+    delta2 = scale* (y3 - y1)/denominator
+    return([delta1,delta2])
+
+
 
 def specialDist(L1,L2):
     sum = 0
-    if (len(L1) != len(L2)):
-        print("two uneven lengths")
-    for i in range(0,len(L1)):
-        num1 = L1[i]
-        num2 = L2[i]
+    print("new:",L1,"known:",L2)
+    if ((np.count_nonzero(L1)) != (np.count_nonzero(L2))):
+        print("two uneven lengths(specialDist)")
+    print("len",np.count_nonzero(L1))
+    for i in range(0,np.count_nonzero(L1)):
+        num1 = L1[0][i]
+        num2 = L2[0][i]
         delta = abs(num1 - num2)
         sum += (delta)
     return math.sqrt(sum) 
 
-def getType(L,data):
+def getType(new,data):
     k = 1
     #the number of neighbors we are comparing to 
-    neighbors = getkNearestNeighbors(k,L,data.trainingData,data.trainingDataType)
+    neighbors = getkNearestNeighbors(k,new,data.transformedTrainingData,data.trainingDataType)
     print("neighbors",neighbors)
     result = getVotes(neighbors)
     return result 
-
+    
 def getVotes(neighbors):
     hiType = None
     hiCount = 0
@@ -150,13 +184,17 @@ def getVotes(neighbors):
             hiCount = curCount
     return hiType
 
-def getkNearestNeighbors(k,L,dataL,typeL):
+def getkNearestNeighbors(k,new,dataL,typeL):
+    if ((np.count_nonzero(dataL)) != (np.count_nonzero(typeL))):
+        print("two uneven lengths(trainingList, trainingTypeList)")
     neighbors = dict()
-    distL = getDists(L,dataL)
-    sortedDistL = sorted(distL)
+    distL = getDists(new,dataL)
+    sortedDistL = np.sort(distL)
     for i in range(k):
     #loop through the closest k neighbors
-        neighbor = typeL[distL.index(sortedDistL[i])]
+        itemindexes = np.where(distL==sortedDistL[i])
+        index = itemindexes[0][0]
+        neighbor = typeL[index]
         print("neighbor:",neighbor,"dist",sortedDistL[i])
         if neighbor not in neighbors:
             neighbors[neighbor] = 1
@@ -164,14 +202,28 @@ def getkNearestNeighbors(k,L,dataL,typeL):
             neighbors[neighbor] += 1
     return neighbors 
 
-def getDists(L,dataL):
-    distL = []
-    for knownImg in dataL:
-        dist = specialDist(L,knownImg)
-        distL.append(dist)
+def getDists(new,dataL):
+    distL = np.asarray([])
+    for knownImg in (dataL):
+        dist = distance(new,knownImg)
+        distL = np.append(distL,dist)
     return distL
 
-print(getkNearestNeighbors(3,[0,0,0],[[1,1,1],[0,0,0],[2,2,2],[0,0,0],[0,0,0]],["dog","dog","dog","cat","dog"]))
+def getPCA(L):
+    #builds a pca model that serves as a black box
+    #takes in a flattened list and returns a tuple of length 2
+    pca = decomposition.PCA(n_components=2)
+    pca.fit(L)
+    return pca 
+#taken from https://www.youtube.com/watch?v=SBYdqlLgbGk
+
+def getPCATransformedData(L,newPCA,data):
+    #This returns transformed training data  
+    result = []
+    for img in data.trainingData:
+        result.append(newPCA.transform(img))
+    return result 
+
 ####################################
 # Main(playMode)
 ####################################
@@ -179,8 +231,18 @@ print(getkNearestNeighbors(3,[0,0,0],[[1,1,1],[0,0,0],[2,2,2],[0,0,0],[0,0,0]],[
 def init(data):
     data.mode = "imputDataMode"
     data.doodle = []
-    data.trainingData = []
-    data.trainingDataType = []
+    data.trainingData = np.loadtxt("trainingData.txt","int")
+    if len(data.trainingData) == 0:
+        data.trainingData = np.empty((0, 2),dtype=int)
+    #at the very beggining, the file starts out empty
+    #the file is read as np.asarray([])
+    #so data.trainingData is always a ndarray
+    data.trainingDataType = np.loadtxt("trainingDataType.txt",'str')
+    data.trainingDataType = np.array(data.trainingDataType).tolist()
+    data.trainingDataType  = cleanUp(data.trainingDataType)
+
+    if len(data.trainingDataType) == 0:
+       data.trainingDataType = []
     data.doodleBoard = make2dList(data.width,data.height)
 
 def mousePressed(event, data):
@@ -198,14 +260,14 @@ def mouseDragged(canvas,event, data):
     data.doodle.append((event.x,event.y))
 
 def mouseReleased(event, data):
-    board = fillGaps(data.doodleBoard,data.doodle)
-    flattenedBoard= flatten(board)
-    numpA = np.array(flattenedBoard)
+    relativePosition = getRelativePosition(data.doodle)
+    numpA = np.asarray(relativePosition)
+
     if data.mode == "imputDataMode":
-        data.trainingData.append(numpA)
-        print("training:",data.trainingData)
+        data.trainingData = np.append(data.trainingData,[numpA],axis=0)
     elif data.mode == "classifyMode":
         data.input = numpA
+    print("trainingData",data.trainingData)
 
     data.doodleBoard = make2dList(data.width,data.height)
     # reset the new board
@@ -221,8 +283,20 @@ def imputDataModeKeyPressed(event, data):
     if event.keysym == "Down":
     #changing modes
         data.mode = "classifyMode"
-    # elif event.keysym == "space":
-    #     updateTrainingData("trainingData.txt",data)
+        #save the thing to the txt file automatically when the rest is done 
+        # np.savetxt("trainingData.txt",data.trainingData, fmt="%d")
+        np.savetxt("trainingDataType.txt",data.trainingDataType, fmt = "%s")
+    elif event.keysym == "space":
+        data.newPCA = getPCA(data.trainingData)
+        newPCAFile = open("myPCAModel.p","wb")
+        pickle.dump(data.newPCA,newPCAFile)
+        newPCAFile.close()
+        
+        data.transformedTrainingData = getPCATransformedData(data.trainingData,data.newPCA,data)
+        print("transformed!",data.transformedTrainingData)
+        newTrainingDataFile = open("myNewTrainingData.p","wb")
+        pickle.dump(data.transformedTrainingData,newTrainingDataFile)
+        newTrainingDataFile.close()
     else:
     #the key is a type 
         if event.keysym == "n":
@@ -234,13 +308,12 @@ def imputDataModeKeyPressed(event, data):
         elif event.keysym == "l":
             imputType = "horizontalLine"
         data.trainingDataType.append(imputType)
-    print("types:",data.trainingDataType)
 
 def classifyModeKeyPressed(event, data):
     if event.keysym == "space":
-        print("The Result:",getType(data.input,data))
+        newInput = data.newPCA.transform(data.input)
+        print("The Result:",getType(newInput,data))
     
-
 def timerFired(data):
     pass
 
