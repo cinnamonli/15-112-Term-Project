@@ -80,29 +80,6 @@ def fillGaps1(pointsL):
         missedPoints.extend(copy.copy(new))
     return sorted(missedPoints)
 
-def fillGaps2(pointsL):
-    # startTime = time.time()
-    newBoard = copy.deepcopy(board)
-    missedPoints = []
-    for i in range(len(pointsL) - 1):
-        T1 = pointsL[i]
-        T2 = pointsL[i + 1]
-        new = findInterlinkingDots(T1,T2)
-        missedPoints.extend(copy.copy(new))
-
-    for oldPoint in pointsL:
-        x = oldPoint[0]
-        y = oldPoint[1]
-        newBoard[x][y] = 2
-
-    for newPoint in missedPoints:
-        x = newPoint[0]
-        y = newPoint[1]
-        newBoard[x][y] = 2
-    # endTime = time.time()
-    # print("fillGaps took %f seconds" % (endTime - startTime))
-    return newBoard
-
 def findF(T1,T2):
     x1,y1 = T1[0],T1[1]
     x2,y2 = T2[0],T2[1]
@@ -139,31 +116,40 @@ def flatten(L):
     return new
 
 def getRelativePosition(doodle):
-    x1,y1 = doodle[0][0],doodle[0][1]
-    x5,y5 = doodle[-1][0],doodle[-1][1]
-    fullDoodle = fillGaps1(doodle)
-    print(fullDoodle)
-    x3 = (x1 + x5)//2
-    x2 = (x1 + x3)//2
-    x4 = (x3 + x5)//2
-    print([x1,x2,x3,x4,x5])
-
-    for dot in fullDoodle:
-        if dot[0] == x2:
-            y2 = dot[1]
-        if dot[0] == x3:
-            y3 = dot[1]
-        if dot[0] == x4:
-            y4 = dot[1]
-
-    denominator = (x5-x1)/4
-    if denominator == 0:
-        denominator = 1
+    #This is a feature that is unafffected by absolute position
+    n = len(doodle)
+    k = 4
+    m = 3
+    index1 = 0
+    index2 = n//k
+    index3 = n//2
+    index4 = n * m//k
+    index5 = -1
+    x1,y1 = doodle[index1][0],doodle[index1][1]
+    x2,y2 = doodle[index2][0],doodle[index2][1]
+    x3,y3 = doodle[index3][0],doodle[index3][1]
+    x4,y4 = doodle[index4][0],doodle[index4][1]
+    x5,y5 = doodle[index5][0],doodle[index5][1]
+    print([(x1,y1),(x2,y2),(x3,y3),(x4,y4),(x5,y5)])
+    
+    denominator1 = abs(x2-x1)
+    if denominator1 == 0:
+        denominator1 = 1
+    denominator2 = abs(x3-x2)
+    if denominator2 == 0:
+        denominator2 = 1
+    denominator3 = abs(x4-x3)
+    if denominator3 == 0:
+        denominator3 = 1
+    denominator4 = abs(x5-x4)
+    if denominator4 == 0:
+        denominator4 = 1
     scale = 4
-    delta1 = scale* (y2 - y1)/denominator
-    delta2 = scale* (y3 - y2)/denominator
-    delta3 = scale* (y4 - y3)/denominator
-    delta4 = scale* (y5 - y4)/denominator
+    #This is used to blow up the differences 
+    delta1 = scale* (y2 - y1)/denominator1
+    delta2 = scale* (y3 - y2)/denominator2
+    delta3 = scale* (y4 - y3)/denominator3
+    delta4 = scale* (y5 - y4)/denominator4
     return([delta1,delta2,delta3,delta4])
 
 
@@ -241,7 +227,7 @@ class Plant(object):
     def __init__(self,data):
         self.x = data.width//2
         self.y = (data.height - data.upperMargin)//2 + data.upperMargin
-        self.level = 1
+        self.level = 2
         self.lives = 5
         self.isDead = False
 
@@ -413,9 +399,14 @@ class Bug(object):
                 text += "  |"
         Astera = font.Font(family='ASTERA', size=23)
         #This font can create upside down "V"s which is "A"
-        if not isinstance(self,Boss):
-            canvas.create_text(self.x, self.y - margin,text = text,font= Astera)
+        if isinstance(self,LightningBug) and self.shapesRemaining!= []:
+            image = ImageTk.PhotoImage(data.thunderImg)
+            self.thunderImg = image
+            canvas.create_image(self.x, self.y-margin, image=self.thunderImg)
 
+        elif not isinstance(self,Boss):
+            canvas.create_text(self.x, self.y - margin,text = text,font= Astera)
+        
         elif isinstance(self,Boss) and self.xSpeed <= 0:
         #only render the shapes when the boss gets back to the starting point 
             canvas.create_text(self.x, self.y - margin,text = text,font= Astera)
@@ -454,25 +445,47 @@ class Bug(object):
             #In this case, the bug dies
             self.isDead = True
             #It is removed from the list
+            if isinstance(self,LightningBug):
+                self.killAll(data)
             currentBugIndex = data.bugs.index(self)
             data.bugs.pop(currentBugIndex)
             #add animation of bug splat 
 
     def deleteShape(self,data):
-        # input = ""
-        # if event.keysym == "n":
-        #     input = "n" 
-        # elif event.keysym == "v":
-        #     input = "v" 
-        # elif event.keysym == "l":
-        #     input = "horizontalLine"
-        # elif event.keysym == "b":
-        #     input = "verticalBar"
         if self.shapesRemaining!= [] and data.input == self.shapesRemaining[0]:
         # lethal hit to bug successful
             data.score += data.scoreUnit
             #add this to score
             self.shapesRemaining.pop(0) 
+
+class LightningBug(Bug):
+    def __init__(self,data):
+        startLocations = getBorders(data.width,data.height, data)
+        (self.x,self.y) = random.choice(startLocations) 
+        if (len(data.bugs) > 0 and 
+            dist(self.x,self.y,data.bugs[-1].x,data.bugs[-1].y) < 100):
+                (self.x,self.y) = random.choice(startLocations) 
+        #This is so that bugs dont start off overlapping 
+        if self.x <= data.width // 2:
+        # if it is on the left hand side 
+        # the current direction is correct 
+            self.direction = True 
+        else:
+        # it is on the right hand side and facing 
+        # the wrong direction 
+            self.direction = False
+        self.isDead = False
+        self.xDist = data.plant.x - self.x
+        self.yDist = data.plant.y - self.y 
+        self.splatted = False
+        Bug.initBug(self,data)
+        self.shapesRemaining = ["thunder"]
+        self.bugType = data.lightningBugImg
+
+    def killAll(self,data):
+        for bug in data.bugs:
+            bug.shapesRemaining = []
+
 
 class Boss(Bug):
     def moveBack(self,data):
@@ -662,12 +675,16 @@ def preloadImages(data):
     data.hopperImg = Image.open("hopper.gif")
     data.ladyBugImg = Image.open("ladybug.gif")
     data.beetleBugImg = Image.open("beetle.gif")
-    # Bumble Bee by Yu luck from the Noun Project
+    data.thunderImg = Image.open("thunder1.gif")
+    data.lightningBugImg = Image.open("lightningBug.gif")
+    # Bugs by Yu luck from the Noun Project
     # Splat by Richard Slade from the Noun Project
     # Splat by Laymik from the Noun Project
+    # flash by unlimicon from the Noun Project
 
 
 def initLevel(data):
+    data.lightningBugsGenerated = 0
     data.bossCreated = False
     data.LevelTimer = 0
     data.bossDead = False
@@ -863,6 +880,11 @@ def level2GenerateBugs(data):
             for i in range(num):
                 data.bugs.append(Bug(data))
                 data.bugCount += 1
+        elif data.lightningBugsGenerated < 2:
+            data.bugs.append(LightningBug(data))
+            data.bugCount += 1
+            data.lightningBugsGenerated += 1
+
         else:
             data.bugs.append(Bug(data))
             data.bugCount += 1
