@@ -20,6 +20,9 @@ def dist(x1,y1,x2,y2):
 
 def almostEqual(a1,a2):
     return abs(a1-a2) < 10**(-7)
+
+def specialAlmostEqual(a1,a2):
+    return abs(a1-a2) < 150
     
 def make2dList(rows, cols):
     a=[]
@@ -124,7 +127,6 @@ def getRelativePosition(doodle):
     x3,y3 = doodle[index3][0],doodle[index3][1]
     x4,y4 = doodle[index4][0],doodle[index4][1]
     x5,y5 = doodle[index5][0],doodle[index5][1]
-    print([(x1,y1),(x2,y2),(x3,y3),(x4,y4),(x5,y5)])
     
     denominator1 = abs(x2-x1)
     if denominator1 == 0:
@@ -253,6 +255,8 @@ class Button(object):
                 data.mode = "mainScreenMode"
             elif data.mode == "gameOverMode" and self.img == data.replayButtonImg:
                 data.mode = "mainScreenMode"
+            elif data.mode == "gameCompleteMode" and self.img == data.replayButtonImg:
+                data.mode = "mainScreenMode"
 ####################################
 # Plant 
 ####################################
@@ -260,16 +264,16 @@ class Plant(object):
     def __init__(self,data):
         self.x = data.width//2
         self.y = (data.height - data.upperMargin)//2 + data.upperMargin
-        self.level = 2
-        self.lives = 5
+        self.level = 1
+        self.lives = 2
         self.isDead = False
 
-    def updateDeath(self):
-        if self.lives < 0:
+    def updateDeath(self,data):
+        if self.lives <= 0:
             self.isDead = True
             data.gameOver = True
         if data.gameOver == True:
-            data.mode == "GameOverMode"
+            data.mode = "gameOverMode"
 
     def draw(self,canvas,data):
         centerX = self.x
@@ -408,8 +412,7 @@ class Bug(object):
             image = ImageTk.PhotoImage(self.bugType)
             self.genBugImage = image
         if (self.splatted == False and self.shapesRemaining == [] or 
-        (isinstance(self,Boss) and self.lives <= 0 and self.splatted == False 
-        and self.shapesRemaining == [] )):
+        (isinstance(self,Boss) and self.isDead == True and self.splatted == False)):
             image = random.choice([data.splatImg1,data.splatImg2])
             image = ImageTk.PhotoImage(image)
             self.genSplatImage = image
@@ -479,7 +482,7 @@ class Bug(object):
         self.y += self.ySpeed
 
     def updateDeath(self,data):
-        if almostEqual(self.x,data.plant.x) and almostEqual(self.y,data.plant.y):
+        if specialAlmostEqual(self.x,data.plant.x) and specialAlmostEqual(self.y,data.plant.y):
         #the bug has reached the plant 
             #In this case, the bug does not die
             #It is removed from the list
@@ -579,7 +582,7 @@ class Boss(Bug):
         if self.x >= data.width and self.reborn == False:
             self.reborn = True
 
-        if (almostEqual(self.x,data.plant.x)and almostEqual(self.y,data.plant.y) 
+        if (specialAlmostEqual(self.x,data.plant.x)and specialAlmostEqual(self.y,data.plant.y) 
         and self.lives > 0):
         #the bug has reached the plant 
             self.lives -= 1
@@ -604,10 +607,10 @@ class Boss(Bug):
         elif self.shapesRemaining == [] and self.lives <= 0:
             self.isDead = True
             data.bossDead = True
-            #add animation of bug splat
 
 class GrassHopper(Boss):
     def __init__(self,data):
+        self.deathReason = None
         self.direction = True 
         self.lives = 2
         #This is the number of times each string of things need to be eliminated 
@@ -631,6 +634,7 @@ class GrassHopper(Boss):
 
 class LadyBug(Boss):
     def __init__(self,data):
+        self.deathReason = None
         self.direction = True 
         self.lives = 2
         #This is the number of times each string of things need to be eliminated 
@@ -708,6 +712,8 @@ def init(data):
     helperScreenModeInit(data)
     playModeInit(data)
     inputDataModeInit(data)
+    gameOverModeInit(data)
+    gameCompleteModeInit(data)
 
 def loadButtons(data):
     data.playButtonImg = Image.open("playbutton.gif")
@@ -723,6 +729,10 @@ def loadBackgrounds(data):
     data.backgroundImg1 = Image.open("background1.gif")
     data.backgroundImg2 = Image.open("background2.gif")
     data.backgroundImg3 = Image.open("background3.gif")
+    data.gameOverBackground = Image.open("gameoverbackground.gif")
+
+    data.gameCompleteBackground = Image.open("gamecompletebackground.gif")
+    #https://www.gizmodo.com.au/2013/02/scientists-claim-to-have-built-a-computer-that-never-crashes/
     data.gridBackgroundImg = Image.open("gridbackground.gif")
 
 def mainScreenModeInit(data):
@@ -800,7 +810,10 @@ def initLevel(data):
     data.input = ""
 
 def gameOverModeInit(data):
-    data.gbuttons = [Button(data.width//2,data.height*4//5,data.replayButtonImg)]
+    data.dbuttons = [Button(data.width*4//5,data.height*8//9,data.replayButtonImg)]
+
+def gameCompleteModeInit(data):
+    data.wbuttons = [Button(data.width*4//5,data.height*8//9,data.replayButtonImg)]
 
 def inputDataModeInit(data):
     #initializes everything used in "inputDataMode"
@@ -835,6 +848,8 @@ def mousePressed(event, data):
         inputDataModeMousePressed(event,data)
     elif data.mode == "gameOverMode":
         gameOverModeMousePressed(event,data)
+    elif data.mode == "gameCompleteMode":
+        gameCompleteModeMousePressed(event,data)
         
         
 
@@ -861,8 +876,17 @@ def inputDataModeMousePressed(event,data):
     data.prevX = event.x
     data.prevY = event.y
 
+def gameCompleteModeMousePressed(event,data):
+    for button in data.wbuttons:
+        button.redirect(event,data)
+    init(data) 
+
 def gameOverModeMousePressed(event,data):
-    pass
+    for button in data.dbuttons:
+        button.redirect(event,data)
+    init(data) 
+
+
 
 #################################################
 # MouseDragged
@@ -894,12 +918,7 @@ def playModeMouseReleased(event, data):
 def inputDataModeMouseReleased(event, data):
     relativePosition = getRelativePosition(data.doodle)
     numpA = np.asarray(relativePosition)
-
-    if data.mode == "imputDataMode":
-        data.trainingData = np.append(data.trainingData,[numpA],axis=0)
-    elif data.mode == "classifyMode":
-        data.input = numpA
-
+    data.trainingData = np.append(data.trainingData,[numpA],axis=0)
     data.doodleBoard = make2dList(data.width,data.height)
     # reset the new board
     # this is used to store the data 
@@ -969,7 +988,6 @@ def gameOverModeKeyPressed(event,data):
 #################################################
 
 def timerFired(data):
-    print(data.mode)
     if data.mode == "mainScreenMode":
         mainScreenModeTimerFired(data)
     elif data.mode == "helperScreenMode":
@@ -1004,7 +1022,7 @@ def mainPlayModeTimerFired(data):
     data.bugTimer += (data.timerDelay/millisecond) 
     #bug timer is used to create "waves" of bugs 
     generateBugs(data)
-
+    data.plant.updateDeath(data)
     if data.bugs != []:
         for bug in data.bugs:
             if bug.isDead == False:
@@ -1087,8 +1105,8 @@ def level5UpdateLevel(data):
         data.levelComplete = True
 
     if data.levelComplete == True:
-        data.playMode = "GameCompleteMode"
-        #move to next level 
+        data.mode = "GameCompleteMode"
+        #win game 
 
 ####################################
 # Bug Generation 
@@ -1244,7 +1262,10 @@ def redrawAll(canvas, data):
         inputDataModeDraw(canvas,data)
     elif data.mode == "gameOverMode":
         gameOverModeDraw(canvas,data)
+    elif data.mode == "gameCompleteMode":
+        gameCompleteModeDraw(canvas,data)
         
+
 def mainScreenModeDraw(canvas,data):
     TkFormat = PIL.ImageTk.PhotoImage(data.mainBackgroundImg)
     data.newImg = TkFormat
@@ -1278,11 +1299,6 @@ def playModeDraw(canvas,data):
     elif data.playMode == "readySetGoMode":
         readySetGoModeDraw(canvas,data) 
 
-    elif data.playMode == "gameCompleteMode":
-        gameCompleteDraw(canvas,data) 
-
-    elif data.playMode == "gameOverMode":
-        gameOverModeDraw(canvas,data)
 def mainPlayModeDraw(canvas,data):
     #draw the plant 
     data.plant.draw(canvas,data)
@@ -1326,11 +1342,38 @@ def readySetGoModeDraw(canvas,data):
         size=90, weight='bold')
     canvas.create_text(data.width/2,data.height/2,text = text,font = Arcade90)
 
-def gameCompleteDraw(canvas,data):
-    pass
+def gameCompleteModeDraw(canvas,data):
+    TkFormat = PIL.ImageTk.PhotoImage(data.gameCompleteBackground)
+    data.newImg = TkFormat
+    #this stores the new image so it doesn't get garbage collected 
+    canvas.create_image(data.width/2, data.height/2,image=data.newImg)
+    for button in data.wbuttons:
+        button.draw(canvas,data)
+    Arcade90 = font.Font(family='ArcadeClassic',
+        size=90, weight='bold')
+    Arcade60 = font.Font(family='ArcadeClassic',
+        size=60, weight='bold')
+    text1 = "you win!"
+    text2 = "High Score: " + str(data.score)
+    canvas.create_text(data.width/2,data.height/4, anchor = S,text = text1,font = Arcade90)
+    canvas.create_text(data.width/2,data.height*3/4, anchor = N,text = text2,font = Arcade60)
+
 
 def gameOverModeDraw(canvas,data):
-    pass
+    TkFormat = PIL.ImageTk.PhotoImage(data.gameOverBackground)
+    data.newImg = TkFormat
+    #this stores the new image so it doesn't get garbage collected 
+    canvas.create_image(data.width/2, data.height/2,image=data.newImg)
+    for button in data.dbuttons:
+        button.draw(canvas,data)
+    Arcade90 = font.Font(family='ArcadeClassic',
+        size=90, weight='bold')
+    Arcade60 = font.Font(family='ArcadeClassic',
+        size=60, weight='bold')
+    text1 = "game over"
+    text2 = "Score: " + str(data.score)
+    canvas.create_text(data.width/2,data.height/4, anchor = S,text = text1,font = Arcade90)
+    canvas.create_text(data.width/2,data.height*3/4, anchor = N,text = text2,font = Arcade60)
 
 def drawDoodle(canvas, points):
     prevX,prevY = points[0][0],points[0][1]
@@ -1393,10 +1436,6 @@ def drawDoodle(canvas, points):
         canvas.create_line(prevX,prevY,x,y,width = 3)
         prevX,prevY = x,y
 
-def gameOverModeDraw(canvas,data):
-    #add background
-    for button in data.gbuttons:
-        button.draw(canvas,data)
 ####################################
 # use the run function as-is
 ####################################
