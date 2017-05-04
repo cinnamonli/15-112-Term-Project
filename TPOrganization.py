@@ -22,7 +22,7 @@ def almostEqual(a1,a2):
     return abs(a1-a2) < 10**(-7)
 
 def specialAlmostEqual(a1,a2):
-    return abs(a1-a2) < 150
+    return abs(a1-a2) < 120
     
 def make2dList(rows, cols):
     a=[]
@@ -215,7 +215,7 @@ def getPCA(L):
 def getPCATransformedData(L,newPCA,data):
     #This returns transformed training data  
     result = []
-    for img in data.trainingData:
+    for img in L:
         result.append(newPCA.transform(img))
     return result 
 
@@ -243,20 +243,27 @@ class Button(object):
             if data.mode == "mainScreenMode" and self.img == data.playButtonImg:
             #play is pressed
                 data.mode = "playMode"
+                playModeInit(data)
             elif data.mode == "mainScreenMode" and self.img == data.helpButtonImg:
             #help is pressed
-                data.mode = "helperScreenMode" 
+                data.mode = "helperScreenMode"
+                helperScreenModeInit(data) 
             elif data.mode == "mainScreenMode" and self.img == data.calibrateButtonImg:
             #train is pressed
                 data.mode = "inputDataMode"    
+                inputDataModeInit(data)
             elif data.mode == "helperScreenMode" and self.img == data.backButtonImg:
                 data.mode = "mainScreenMode" 
+                mainScreenModeInit(data)
             elif data.mode == "inputDataMode" and self.img == data.backButtonImg:
                 data.mode = "mainScreenMode"
+                mainScreenModeInit(data)
             elif data.mode == "gameOverMode" and self.img == data.replayButtonImg:
                 data.mode = "mainScreenMode"
+                mainScreenModeInit(data)
             elif data.mode == "gameCompleteMode" and self.img == data.replayButtonImg:
                 data.mode = "mainScreenMode"
+                mainScreenModeInit(data)
 ####################################
 # Plant 
 ####################################
@@ -264,7 +271,7 @@ class Plant(object):
     def __init__(self,data):
         self.x = data.width//2
         self.y = (data.height - data.upperMargin)//2 + data.upperMargin
-        self.level = 5
+        self.level = 4
         self.lives = 5
         self.isDead = False
 
@@ -320,7 +327,7 @@ class Bug(object):
             self.ySpeed = self.yDist / fastRatio 
             
     def initLevel3Bug(self,data):
-        fastRatio = 40
+        fastRatio = 55
         normalRatio = 120
         lo = 3
         hi = 6
@@ -335,7 +342,7 @@ class Bug(object):
             self.ySpeed = self.yDist / fastRatio 
 
     def initLevel4Bug(self,data):
-        fastRatio = 30
+        fastRatio = 50
         normalRatio = 100
         lo = 3
         hi = 6
@@ -350,8 +357,8 @@ class Bug(object):
             self.ySpeed = self.yDist / fastRatio 
 
     def initLevel5Bug(self,data):
-        fastRatio = 30
-        normalRatio = 80
+        fastRatio = 40
+        normalRatio = 85
         lo = 3
         hi = 6
         if data.bugCount < 18:
@@ -460,7 +467,7 @@ class Bug(object):
 
     def drawShapes(self,canvas,data):
         text = ""
-        margin = 40
+        margin = 60
         for shape in self.shapesRemaining:
             if shape == "n":
                 text += "  A" 
@@ -795,9 +802,6 @@ def loadButtons(data):
 def loadBackgrounds(data):
     data.mainBackgroundImg = Image.open("mainbackground.gif")
     # adapted from https://www.iconfinder.com/icons/310934/compose_draw_graph_line_pencil_write_icon
-    data.backgroundImg1 = Image.open("background1.gif")
-    data.backgroundImg2 = Image.open("background2.gif")
-    data.backgroundImg3 = Image.open("background3.gif")
     data.gameOverBackground = Image.open("gameoverbackground.gif")
 
     data.gameCompleteBackground = Image.open("gamecompletebackground.gif")
@@ -856,6 +860,7 @@ def preloadImages(data):
     data.beeBugImg = Image.open("bee.gif")
     data.butterflyBugImg = Image.open("butterfly.gif")
     data.pinkBugImg = Image.open("pinkbug.gif")
+    data.instructionsImg = Image.open("instructions.gif")
     data.thunderImg = Image.open("thunder1.gif")
     data.lightningStripImg1 = Image.open("LightningStrip1.gif")
     data.lightningStripImg2 = Image.open("LightningStrip2.gif")
@@ -879,12 +884,13 @@ def initLevel(data):
     data.bugs.append(Bug(data))
     data.levelComplete = False
     data.input = ""
+    data.doodle = []
 
 def gameOverModeInit(data):
     data.dbuttons = [Button(data.width*4//5,data.height*8//9,data.replayButtonImg)]
 
 def gameCompleteModeInit(data):
-    data.wbuttons = [Button(data.width*4//5,data.height*8//9,data.replayButtonImg)]
+    data.wbuttons = [Button(data.width*6//7,data.height*9//10,data.replayButtonImg)]
 
 def inputDataModeInit(data):
     #initializes everything used in "inputDataMode"
@@ -925,13 +931,11 @@ def mousePressed(event, data):
         
 
 def mainScreenModeMousePressed(event,data):
-    for button in data.mbuttons:
-        button.redirect(event,data)
+    pass
     
 
 def helperModeMousePressed(event,data):
-    for button in data.hbuttons:
-        button.redirect(event,data) 
+    pass
 
 def playModeMousePressed(event,data):
     data.doodle = []
@@ -939,8 +943,6 @@ def playModeMousePressed(event,data):
     data.prevY = event.y
 
 def inputDataModeMousePressed(event,data):
-    for button in data.ibuttons:
-        button.redirect(event,data) 
     data.doodle = []
     # this is used to draw 
     # # reset the new doodle 
@@ -948,15 +950,10 @@ def inputDataModeMousePressed(event,data):
     data.prevY = event.y
 
 def gameCompleteModeMousePressed(event,data):
-    for button in data.wbuttons:
-        button.redirect(event,data)
-    init(data) 
-
+    pass
+    
 def gameOverModeMousePressed(event,data):
-    for button in data.dbuttons:
-        button.redirect(event,data)
-    init(data) 
-
+    pass
 
 
 #################################################
@@ -972,27 +969,51 @@ def mouseDragged(canvas,event, data):
 #################################################
 
 def mouseReleased(event, data):
-    if data.mode == "playMode":
-        playModeMouseReleased(event, data)
+    if data.mode == "mainScreenMode":
+        mainScreenModeMouseReleased(event,data)
+    elif data.mode == "helperScreenMode":
+        helperModeMouseReleased(event,data)
+    elif data.mode == "playMode":
+        playModeMouseReleased(event,data)
     elif data.mode == "inputDataMode":
-        inputDataModeMouseReleased(event, data)
+        inputDataModeMouseReleased(event,data)
+    elif data.mode == "gameOverMode":
+        gameOverModeMouseReleased(event,data)
+    elif data.mode == "gameCompleteMode":
+        gameCompleteModeMouseReleased(event,data)
+
+def mainScreenModeMouseReleased(event,data):
+    for button in data.mbuttons:
+        button.redirect(event,data)
+def helperModeMouseReleased(event,data):
+    for button in data.hbuttons:
+        button.redirect(event,data) 
 
 def playModeMouseReleased(event, data):
     relativePosition = getRelativePosition(data.doodle)
     numpA = np.asarray(relativePosition)
-    data.new = numpA
-    newInput = data.pca.transform(data.new)
+    newInput = data.pca.transform(numpA)
     data.input = getType(newInput,data)
     for bug in data.bugs:
         bug.deleteShape(data)
 
 def inputDataModeMouseReleased(event, data):
+    for button in data.ibuttons:
+        button.redirect(event,data) 
     relativePosition = getRelativePosition(data.doodle)
     numpA = np.asarray(relativePosition)
     data.trainingData = np.append(data.trainingData,[numpA],axis=0)
     data.doodleBoard = make2dList(data.width,data.height)
     # reset the new board
     # this is used to store the data 
+def gameOverModeMouseReleased(event,data):
+    for button in data.dbuttons:
+        button.redirect(event,data)
+
+def gameCompleteModeMouseReleased(event,data):
+    for button in data.wbuttons:
+        button.redirect(event,data)
+
 
 #################################################
 # KeyPressed
@@ -1100,8 +1121,8 @@ def mainPlayModeTimerFired(data):
             if bug.isDead == False:
                 bug.move(data)
                 bug.updateDeath(data)
-
     updateLevel(data)
+
 ####################################
 # Level Update 
 ####################################
@@ -1323,9 +1344,9 @@ def level4GenerateBugs(data):
 def level5GenerateBugs(data):
     #bigger "waves" of bugs
     #fast bugs
-    if data.bugTimer > 4 and data.bugCount < 28:
+    if data.bugTimer > 5 and data.bugCount < 28:
         if random.randint(0,1) > 0.5:
-            num =random.choice([4,5])
+            num =random.choice([3,5])
             # this generates a wave of bugs that could be between 2 and 4
             for i in range(num):
                 data.bugs.append(Bug(data))
@@ -1384,15 +1405,19 @@ def mainScreenModeDraw(canvas,data):
     canvas.create_image(data.width/2, data.height/2,image=data.newImg)
     for button in data.mbuttons:
         button.draw(canvas,data)
-    Arcade190 = font.Font(family='ArcadeClassic',
-        size=190, weight='bold')
-    canvas.create_text(data.width/2, data.height/3,text="draw",font = Arcade190)
+    Arcade160 = font.Font(family='ArcadeClassic',
+        size=160, weight='bold')
+    canvas.create_text(data.width/2, data.height/3,anchor = N,text="Doodlebug",font = Arcade160)
 
 def helperScreenModeDraw(canvas,data):
     TkFormat = PIL.ImageTk.PhotoImage(data.gridBackgroundImg)
     data.newImg = TkFormat
     #this stores the new image so it doesn't get garbage collected 
     canvas.create_image(data.width/2, data.height/2,image=data.newImg)
+    TkFormat2 = PIL.ImageTk.PhotoImage(data.instructionsImg)
+    data.newImg2 = TkFormat2
+    #this stores the new image so it doesn't get garbage collected 
+    canvas.create_image(data.width/2, data.height/2,image=data.newImg2)
     Arcade90 = font.Font(family='ArcadeClassic',
         size=90, weight='bold')
     canvas.create_text(data.width/2, data.height/9,text="instructions",font = Arcade90)
@@ -1601,7 +1626,7 @@ def run(width=300, height=300):
 #################################################
 # main
 #################################################
-def KillTheBugs():
+def DoodleBug():
     run(1000, 750)
 
-KillTheBugs()
+DoodleBug()
