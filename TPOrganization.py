@@ -138,8 +138,8 @@ def getRelativePosition(doodle):
     if denominator3 == 0:
         denominator3 = 1
     denominator4 = abs(x5-x4)
-    if denominator3 == 0:
-        denominator3 = 1
+    if denominator4 == 0:
+        denominator4 = 1
     scale = 4
     #This is used to blow up the differences 
     delta1 = scale* (y2 - y1)/denominator1
@@ -264,8 +264,8 @@ class Plant(object):
     def __init__(self,data):
         self.x = data.width//2
         self.y = (data.height - data.upperMargin)//2 + data.upperMargin
-        self.level = 1
-        self.lives = 2
+        self.level = 5
+        self.lives = 5
         self.isDead = False
 
     def updateDeath(self,data):
@@ -320,29 +320,49 @@ class Bug(object):
             self.ySpeed = self.yDist / fastRatio 
             
     def initLevel3Bug(self,data):
-        self.xSpeed = self.xDist / 140
-        self.ySpeed = self.yDist / 140 
-        if (random.randint(0,1) < 0.6):
-            self.shapeNum = random.randint(1,4)
-        else:
+        fastRatio = 40
+        normalRatio = 120
+        lo = 3
+        hi = 6
+        if data.bugCount < 18:
+            self.shapeNum = random.randint(lo,hi)
+            self.xSpeed = self.xDist / normalRatio
+            self.ySpeed = self.yDist / normalRatio 
+
+        elif data.bugCount >= 18:
             self.shapeNum = 1
+            self.xSpeed = self.xDist / fastRatio
+            self.ySpeed = self.yDist / fastRatio 
+
     def initLevel4Bug(self,data):
-        self.xSpeed = self.xDist / 140
-        self.ySpeed = self.yDist / 140 
-        if (random.randint(0,1) < 0.2):
-            self.xSpeed = self.xDist / 100
-            self.ySpeed = self.yDist / 100 
-        if (random.randint(0,1) < 0.6):
-            self.shapeNum = random.randint(1,4)
-        else:
+        fastRatio = 30
+        normalRatio = 100
+        lo = 3
+        hi = 6
+        if data.bugCount < 18:
+            self.shapeNum = random.randint(lo,hi)
+            self.xSpeed = self.xDist / normalRatio
+            self.ySpeed = self.yDist / normalRatio 
+
+        elif data.bugCount >= 18:
             self.shapeNum = 1
+            self.xSpeed = self.xDist / fastRatio
+            self.ySpeed = self.yDist / fastRatio 
+
     def initLevel5Bug(self,data):
-        self.xSpeed = self.xDist / 130
-        self.ySpeed = self.yDist / 130 
-        if (random.randint(0,1) < 0.4):
-            self.xSpeed = self.xDist / 100
-            self.ySpeed = self.yDist / 100 
-        self.shapeNum = random.randint(3,6)
+        fastRatio = 30
+        normalRatio = 80
+        lo = 3
+        hi = 6
+        if data.bugCount < 18:
+            self.shapeNum = random.randint(lo,hi)
+            self.xSpeed = self.xDist / normalRatio
+            self.ySpeed = self.yDist / normalRatio 
+
+        elif data.bugCount >= 18:
+            self.shapeNum = 1
+            self.xSpeed = self.xDist / fastRatio
+            self.ySpeed = self.yDist / fastRatio 
 
     def initBug(self,data):
         if data.plant.level == 1:
@@ -394,7 +414,8 @@ class Bug(object):
         self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
         flea = data.fleaImg
         pillar = data.pillarImg 
-        bugs = [flea,pillar]
+        pinkbug = data.pinkBugImg
+        bugs = [flea,pillar,pinkbug]
         #choose a type of bug
         self.bugType = random.choice(bugs)
         self.lightningStruck = False
@@ -411,7 +432,7 @@ class Bug(object):
         else: 
             image = ImageTk.PhotoImage(self.bugType)
             self.genBugImage = image
-        if (self.splatted == False and self.shapesRemaining == [] or 
+        if (((not isinstance(self,Boss)) and self.splatted == False and self.shapesRemaining == []) or 
         (isinstance(self,Boss) and self.isDead == True and self.splatted == False)):
             image = random.choice([data.splatImg1,data.splatImg2])
             image = ImageTk.PhotoImage(image)
@@ -658,6 +679,7 @@ class LadyBug(Boss):
 
 class Beetle(Boss):
     def __init__(self,data):
+        self.deathReason = None
         self.direction = True 
         self.lives = 2
         #This is the number of times each string of things need to be eliminated 
@@ -679,6 +701,53 @@ class Beetle(Boss):
         self.reborn = False
         self.spatted = False
 
+class Bee(Boss):
+    def __init__(self,data):
+        self.deathReason = None
+        self.direction = True 
+        self.lives = 2
+        #This is the number of times each string of things need to be eliminated 
+        ratio = (8/10)
+        LadyBugX = data.width
+        LadyBugY = data.height * ratio
+        #starts at the same location at the right of the screen 
+        (self.x,self.y) = (LadyBugX,LadyBugY)
+        self.isDead = False
+        data.xDist = data.plant.x - self.x
+        data.yDist = data.plant.y - self.y  
+        mediumRatio = 120
+        self.xSpeed = data.xDist / mediumRatio
+        self.ySpeed = data.yDist / mediumRatio
+        self.shapeNum = 8
+        self.shapeVals = ["n","v","horizontalLine","verticalBar"]
+        self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
+        self.bugType = data.beeBugImg 
+        self.reborn = False
+        self.spatted = False
+
+class Butterfly(Boss):
+    def __init__(self,data):
+        self.deathReason = None
+        self.direction = True 
+        self.lives = 2
+        #This is the number of times each string of things need to be eliminated 
+        ratio = (8/10)
+        LadyBugX = data.width
+        LadyBugY = data.height * ratio
+        #starts at the same location at the right of the screen 
+        (self.x,self.y) = (LadyBugX,LadyBugY)
+        self.isDead = False
+        data.xDist = data.plant.x - self.x
+        data.yDist = data.plant.y - self.y  
+        mediumRatio = 120
+        self.xSpeed = data.xDist / mediumRatio
+        self.ySpeed = data.yDist / mediumRatio
+        self.shapeNum = 10
+        self.shapeVals = ["n","v","horizontalLine","verticalBar"]
+        self.shapesRemaining = buildShapes(self.shapeNum, self.shapeVals)
+        self.bugType = data.butterflyBugImg 
+        self.reborn = False
+        self.spatted = False
 
 def buildShapes(num, vals):
     #builds up the shapes that each bug contains 
@@ -764,6 +833,7 @@ def playModeInit(data):
     data.playMode = "readySetGoMode"
     data.score = 0
     MLInit(data)
+
 def MLInit(data):
     loadStuff(data)
     #at the very beggining, the file starts out empty
@@ -783,12 +853,13 @@ def preloadImages(data):
     data.hopperImg = Image.open("hopper.gif")
     data.ladyBugImg = Image.open("ladybug.gif")
     data.beetleBugImg = Image.open("beetle.gif")
+    data.beeBugImg = Image.open("bee.gif")
+    data.butterflyBugImg = Image.open("butterfly.gif")
+    data.pinkBugImg = Image.open("pinkbug.gif")
     data.thunderImg = Image.open("thunder1.gif")
     data.lightningStripImg1 = Image.open("LightningStrip1.gif")
     data.lightningStripImg2 = Image.open("LightningStrip2.gif")
     data.lightningStripImg3 = Image.open("LightningStrip3.gif")
-
-    
     data.lightningBugImg = Image.open("lightningBug.gif")
     # Bugs by Yu luck from the Noun Project
     # Splat by Richard Slade from the Noun Project
@@ -946,7 +1017,8 @@ def helperScreenModeKeyPressed(event,data):
     pass
 
 def playModeKeyPressed(event,data):
-    pass
+    if event.keysym == "p":
+        data.paused = not data.paused
 
 def inputDataModeKeyPressed(event,data):
     if event.keysym == "space":
@@ -1006,7 +1078,7 @@ def helperScreenModeTimerFired(data):
     pass
 
 def playModeTimerFired(data):
-    if data.playMode == "mainPlayMode":
+    if data.playMode == "mainPlayMode" and data.paused == False:
         mainPlayModeTimerFired(data)
     elif data.playMode == "readySetGoMode":
         readySetGoModeTimerFired(data)
@@ -1105,7 +1177,7 @@ def level5UpdateLevel(data):
         data.levelComplete = True
 
     if data.levelComplete == True:
-        data.mode = "GameCompleteMode"
+        data.mode = "gameCompleteMode"
         #win game 
 
 ####################################
@@ -1187,59 +1259,98 @@ def level2GenerateBugs(data):
 
 def level3GenerateBugs(data):
     #bigger "waves" of bugs
-    if data.bugTimer > 4 and data.bugCount < 30:
-        if random.randint(0,1) > 0.6:
-            num =random.choice([3,4,5])
-            # this generates a wave of bugs that could be between 3 and 5
+    if data.bugTimer > 5 and data.bugCount < 28:
+        if random.randint(0,1) > 0.5:
+            num =random.choice([2,3,4])
+            # this generates a wave of bugs that could be between 2 and 4
             for i in range(num):
                 data.bugs.append(Bug(data))
                 data.bugCount += 1
+            if data.lightningBugsGenerated < 2:
+                data.bugs.append(LightningBug(data))
+                data.bugCount += 1
+                data.lightningBugsGenerated += 1
+
         else:
             data.bugs.append(Bug(data))
             data.bugCount += 1
         data.bugTimer = 0
-    if data.bugTimer > 5 and data.bugCount > 30:
-        if len(data.bugs) > 0  and not isinstance(data.bugs[-1],GrassHopper):
+
+    elif data.bugTimer > 4 and data.bugCount >= 28:
+        data.bugs.append(Bug(data))
+        data.bugs.append(Bug(data))
+        data.bugCount += 2
+        data.bugTimer = 0
+
+    if data.bugCount >= 28 and data.bossCreated == False:
         #This makes sure there is one boss that gets generated
-            data.bugs.append(GrassHopper(data))
-            #this is the level 3 boss
+        data.bugs.append(Beetle(data))
+        #this is the level 2 boss
+        data.bossCreated = True
 
 def level4GenerateBugs(data):
-    if data.bugTimer > 4 and data.bugCount < 35:
-        if random.randint(0,1) > 0.6:
-            num =random.choice([3,4,5])
-            # this generates a wave of bugs that could be between 3 and 5
+    #bigger "waves" of bugs
+    #fast bugs
+    if data.bugTimer > 6 and data.bugCount < 28:
+        if random.randint(0,1) > 0.5:
+            num =random.choice([3,4,5,6])
+            # this generates a wave of bugs that could be between 2 and 4
             for i in range(num):
                 data.bugs.append(Bug(data))
                 data.bugCount += 1
+            if data.lightningBugsGenerated < 2:
+                data.bugs.append(LightningBug(data))
+                data.bugCount += 1
+                data.lightningBugsGenerated += 1
+
         else:
             data.bugs.append(Bug(data))
             data.bugCount += 1
         data.bugTimer = 0
-    elif data.bugTimer > 5 and data.bugCount > 35:
-        if len(data.bugs) > 0  and not isinstance(data.bugs[-1],GrassHopper):
+
+    elif data.bugTimer > 4 and data.bugCount >= 28:
+        data.bugs.append(Bug(data))
+        data.bugs.append(Bug(data))
+        data.bugCount += 2
+        data.bugTimer = 0
+
+    if data.bugCount >= 28 and data.bossCreated == False:
         #This makes sure there is one boss that gets generated
-            data.bugs.append(GrassHopper(data))
-            #this is the level 4 boss
+        data.bugs.append(Bee(data))
+        #this is the level 2 boss
+        data.bossCreated = True
 
 def level5GenerateBugs(data):
-    if data.bugTimer > 4 and data.bugCount < 40:
-        if random.randint(0,1) > 0.6:
-            num =random.choice([3,4,5,6])
-            # this generates a wave of bugs that could be between 3 and 6
+    #bigger "waves" of bugs
+    #fast bugs
+    if data.bugTimer > 4 and data.bugCount < 28:
+        if random.randint(0,1) > 0.5:
+            num =random.choice([4,5])
+            # this generates a wave of bugs that could be between 2 and 4
             for i in range(num):
                 data.bugs.append(Bug(data))
                 data.bugCount += 1
+            if data.lightningBugsGenerated < 2:
+                data.bugs.append(LightningBug(data))
+                data.bugCount += 1
+                data.lightningBugsGenerated += 1
+
         else:
             data.bugs.append(Bug(data))
             data.bugCount += 1
         data.bugTimer = 0
 
-    elif data.bugTimer > 5 and data.bugCount > 40:
-        if len(data.bugs) > 0 and not isinstance(data.bugs[-1],GrassHopper):
+    elif data.bugTimer > 4 and data.bugCount >= 28:
+        data.bugs.append(Bug(data))
+        data.bugs.append(Bug(data))
+        data.bugCount += 2
+        data.bugTimer = 0
+
+    if data.bugCount >= 28 and data.bossCreated == False:
         #This makes sure there is one boss that gets generated
-            data.bugs.append(GrassHopper(data))
-            #this is the level 5 boss
+        data.bugs.append(Butterfly(data))
+        #this is the level 2 boss
+        data.bossCreated = True
 
 def inputDataModeTimerFired(data):
     pass
@@ -1356,7 +1467,7 @@ def gameCompleteModeDraw(canvas,data):
     text1 = "you win!"
     text2 = "High Score: " + str(data.score)
     canvas.create_text(data.width/2,data.height/4, anchor = S,text = text1,font = Arcade90)
-    canvas.create_text(data.width/2,data.height*3/4, anchor = N,text = text2,font = Arcade60)
+    canvas.create_text(data.width/2,data.height*5/6, anchor = N,text = text2,font = Arcade60)
 
 
 def gameOverModeDraw(canvas,data):
@@ -1429,12 +1540,6 @@ def inputDataModeDraw(canvas,data):
 
     if len(data.doodle) > 1:
         drawDoodle(canvas, data.doodle)
-
-def drawDoodle(canvas, points):
-    prevX,prevY = points[0][0],points[0][1]
-    for (x,y) in points[1:]:
-        canvas.create_line(prevX,prevY,x,y,width = 3)
-        prevX,prevY = x,y
 
 ####################################
 # use the run function as-is
